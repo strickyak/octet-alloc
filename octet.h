@@ -6,7 +6,9 @@ typedef unsigned char byte;
 // Octet is addressed by 16-bit unsigned words.
 typedef unsigned short word;
 // Pointers to directly address Octet memory.
-typedef char* optr;
+#if 0
+typedef byte* optr;
+#endif
 
 #define O_mem_size 0x8000
 #define O_start OctetMemory
@@ -34,24 +36,31 @@ extern void ozero(word begin, word len);
 #define oputw Oputw
 
 // direct pointers to memory.
+#if 0
 extern optr oword2ptr(word addr);
 extern word optr2word(optr ptr);
+#endif
 
 // Garbage collected alloc & gc.
-extern void oinit();
-extern word oalloc(word len, byte cls);
-extern void ogc();
+typedef void (*omarker)();     // Type of function to mark roots.
+extern void omark(word addr);  // Mark a root object.
+
+extern void oinit(word begin, word end);
+extern word oalloc(word len, byte cls, omarker fn);
+extern void ogc(omarker fn);
 
 // Unsafe free.  Only use it if no other pointers exist.
 extern void ofree(word addr);
 
 // private:
-extern byte ORam[O_mem_size];
-#define O_num_buckets 13
+extern byte ORam[1 << 16];
+#define O_num_buckets 12
 extern byte osize2bucket(word size);
 extern void opanic(byte);
 
 // Error Numbers
+#define OE_NULL_PTR 50   /* using a null pointer */
+#define OE_BAD_PTR 51    /* using a bad pointer (too large, or not even) */
 #define OE_TOO_BIG 52    /* length of alloc cannot be over 256 */
 #define OE_TOO_LATE 53   /* cannot call oallocforever() after oalloc() */
 #define OE_ZERO_CLASS 54 /* class number can not be zero */
