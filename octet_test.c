@@ -6,10 +6,10 @@
 void mark_no_roots() { printf(" ======GC====== "); }
 
 void AllocAndPrintTest() {
-  for (word j = 0; j < 10; j++) {
+  for (byte j = 0; j < 10; j++) {
     printf("Round %d:\n", j);
-    for (word i = 1; i < 256; i++) {
-      word p = oalloc(i, i, mark_no_roots);
+    for (byte i = 1; i < 254; i++) {
+      word p = oalloc(i, i);
       printf("%d: $%04x ", i, p);
     }
     printf("\n");
@@ -23,20 +23,10 @@ void opanic(byte x) {
 }
 
 int main() {
-  printf("hello %d %d\n", sizeof(word), sizeof(short));
+  printf("hello %d %d\n", (int)sizeof(word), (int)sizeof(short));
   printf("oinit:\n");
-  oinit(200, 30000);
+  oinit(200, 50000, mark_no_roots);
   printf("did oinit\n");
   AllocAndPrintTest();
   printf("bye\n");
-#if 0
-  oinit(), AllocAndPrintTest();
-  oinit(), AllocAndPrintTest();
-  oinit(), AllocAndPrintTest();
-  oinit(), AllocAndPrintTest();
-  oinit(), AllocAndPrintTest();
-  oinit(), AllocAndPrintTest();
-  oinit(), AllocAndPrintTest();
-  oinit(), AllocAndPrintTest();
-#endif
 }
