@@ -54,7 +54,7 @@ typedef byte bool;
 // Global variables hold the global state.
 extern byte ORam[1 << 16];
 extern word ORamUsed;
-extern word ORamForever;
+extern word ORamFrozen;
 extern word ORamBegin;
 extern word ORamEnd;
 extern omarker OMarkerFn;
@@ -81,13 +81,16 @@ byte ocls(word addr);
 char* oshow(word addr);
 char* osay(word addr, const char* label, int arg);
 
-// private:
-extern byte ORam[1 << 16];
-#define O_NUM_BUCKETS 13
 extern byte osize2bucket(byte size);
 extern void opanic(byte);
 extern void ozero(word begin, word len);
 extern void oassertzero(word begin, word len);
+void omemcpy(word d, word s, byte n);
+int omemcmp(word pchar1, byte len1, word pchar2, byte len2);
+void odump();
+
+extern byte ORam[1 << 16];
+#define O_NUM_BUCKETS 13
 
 // Error Numbers
 #define OE_NULL_PTR 50   /* using a null pointer */

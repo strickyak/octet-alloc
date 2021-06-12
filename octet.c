@@ -5,11 +5,13 @@
 
 #include "octet.h"
 
+#define V_OCTET if (false) fprintf
+
 // Emulated memory for testing on a large host.
 // On a 64K platform, prefer raw memory somewhere.
 byte ORam[1 << 16];
 word ORamUsed;
-word ORamForever;
+word ORamFrozen;
 word ORamBegin;
 word ORamEnd;
 omarker OMarkerFn;
@@ -25,7 +27,7 @@ bool ovalidaddr(word a) {
 
 byte ocap(word a) {
   word c = 0x7F & ogetb(a - DCAP);
-  return c + c;
+  return 2 * c;
 }
 byte ocls(word a) { return ogetb(a - DCLS); }
 
@@ -47,7 +49,7 @@ void oinit(word begin, word end, omarker fn) {
   ORamEnd = end;
   OMarkerFn = fn;
   ORamUsed = begin;
-  ORamForever = begin;
+  ORamFrozen = begin;
   for (byte i = 0; i < O_NUM_BUCKETS; i++) OBucket[i] = 0;
   ozero(ORamBegin, ORamEnd);
 #if 0
@@ -101,10 +103,10 @@ word ocarve(byte len, byte cls) {
 }
 
 word oallocforever(byte len, byte cls) {
-  if (ORamForever != ORamUsed) opanic(OE_TOO_LATE);
+  if (ORamFrozen != ORamUsed) opanic(OE_TOO_LATE);
   word p = ocarve(len, cls);
   if (!p) opanic(OE_OUT_OF_MEM);
-  ORamForever = ORamUsed;
+  ORamFrozen = ORamUsed;
   return p;
 }
 void ocheckguards(word p) {
@@ -131,7 +133,7 @@ word oalloc_try(byte len, byte cls) {
     word cap = ocap(p);
     assert(cap >= len);
     oassertzero(p, cap);
-    printf("reuse: buck=%d cap=%d p=%d cls=%d\n", buck, cap, p, cls);
+    V_OCTET(stderr, "reuse: buck=%d cap=%d p=%d cls=%d\n", buck, cap, p, cls);
     return p;
   }
 
@@ -148,7 +150,7 @@ word oalloc(byte len, byte cls) {
     // Second try.
     p = oalloc_try(len, cls);
   }
-  printf("oalloc %d %d -> %d\n", len, cls, p);
+  V_OCTET(stderr, "oalloc %d %d -> %d\n", len, cls, p);
   if (!p) opanic(OE_OUT_OF_MEM);
   return p;
 }
@@ -195,7 +197,7 @@ void omark(word addr) {
 }
 
 void ogc() {
-  printf("ogc: begin {{{\n");
+  V_OCTET(stderr, "ogc: begin {{{\n");
   // Mark all our roots.
   OMarkerFn();
 
@@ -211,8 +213,8 @@ void ogc() {
   // Reset all the buckets.
   for (byte i = 0; i < O_NUM_BUCKETS; i++) OBucket[i] = 0;
 
-  printf("ogc: sweep ===\n");
-  word p = ORamForever + DHDR;
+  V_OCTET(stderr, "ogc: sweep ===\n");
+  word p = ORamFrozen + DHDR;
   while (p < ORamUsed) {
 #if GUARD
     ocheckguards(p);
@@ -234,10 +236,13 @@ void ogc() {
     }
     p += cap + DHDR;
   }
-  printf("ogc: end }}}\n");
+  V_OCTET(stderr, "ogc: end }}}\n");
 }
 
 char* oshow(word addr) {
+  if (!addr) {
+    return strdup("nil");
+  }
   word cap = ocap(addr);
   char* s = malloc(cap * 3 + 32);
   sprintf(s, "cap=%d[%02x %02x]:", cap, ogetb(addr - DCAP), ogetb(addr - DCLS));
@@ -251,7 +256,7 @@ char* oshow(word addr) {
 
 char* osay(word addr, const char* label, int index) {
   char* s = oshow(addr);
-  printf("[%s #%d] %04x %s\n", label, index, addr, s);
+  V_OCTET(stderr, "[%s #%d] %04x %s\n", label, index, addr, s);
   free(s);
 #if GUARD
   ocheckguards(addr);
@@ -259,5 +264,56 @@ char* osay(word addr, const char* label, int index) {
 }
 
 void odump() {
-  //
+  int count_used = 0;
+  int bytes_used = 0;
+  int count_skip = 0;
+  int bytes_skip = 0;
+  V_OCTET(stderr, "\n{{{{{ ODUMP %04x:\n", ORamBegin);
+  word p = ORamBegin + DHDR;
+  while (p < ORamUsed) {
+    byte cap = ocap(p);
+    byte cls = ocls(p);
+    if (cls) {
+      ++count_used;
+      bytes_used += cap;
+      osay(p, "odump", count_used);
+    } else {
+      ++count_skip;
+      bytes_skip += cap;
+      V_OCTET(stderr, "skip: %04x [%d.]\n", p, cap);
+    }
+    p += cap + DHDR;
+  }
+  V_OCTET(stderr, "count: used=%d + skip=%d = total=%d.\n", count_used, count_skip,
+         count_used + count_skip);
+  V_OCTET(stderr, "bytes: used=%d + skip=%d = total=%d.\n", bytes_used, bytes_skip,
+         bytes_used + bytes_skip);
+  V_OCTET(stderr, "ram: used=%d / total=%d = %.2f%%.\n", bytes_used,
+         (ORamEnd - ORamBegin), 100.0 * bytes_used / (ORamEnd - ORamBegin));
+  V_OCTET(stderr, "ram: carved=%d / total=%d = %.2f%%.\n", bytes_used + bytes_skip,
+         (ORamEnd - ORamBegin),
+         100.0 * (bytes_used + bytes_skip) / (ORamEnd - ORamBegin));
+
+  V_OCTET(stderr, "}}}}} ODUMP %04x\n\n", ORamUsed);
+}
+
+void omemcpy(word d, word s, byte n) {
+  for (byte i = 0; i < n; i++) {
+    oputb(d, ogetb(s));
+    d++;
+    s++;
+  }
+}
+
+int omemcmp(word pchar1, byte len1, word pchar2, byte len2) {
+  byte i;
+  byte len = (len1 < len2) ? len1 : len2;
+  for (i = 0; i < len; i++) {
+    if (ogetb(pchar1) < ogetb(pchar2)) return -1;
+    if (ogetb(pchar1) > ogetb(pchar2)) return +1;
+    ++pchar1, ++pchar2;
+  }
+  if (len1 > len) return +1;
+  if (len2 > len) return -1;
+  return 0;
 }
