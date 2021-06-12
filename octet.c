@@ -5,7 +5,8 @@
 
 #include "octet.h"
 
-#define V_OCTET if (false) fprintf
+#define V_OCTET \
+  if (false) fprintf
 
 // Emulated memory for testing on a large host.
 // On a 64K platform, prefer raw memory somewhere.
@@ -284,15 +285,15 @@ void odump() {
     }
     p += cap + DHDR;
   }
-  V_OCTET(stderr, "count: used=%d + skip=%d = total=%d.\n", count_used, count_skip,
-         count_used + count_skip);
-  V_OCTET(stderr, "bytes: used=%d + skip=%d = total=%d.\n", bytes_used, bytes_skip,
-         bytes_used + bytes_skip);
+  V_OCTET(stderr, "count: used=%d + skip=%d = total=%d.\n", count_used,
+          count_skip, count_used + count_skip);
+  V_OCTET(stderr, "bytes: used=%d + skip=%d = total=%d.\n", bytes_used,
+          bytes_skip, bytes_used + bytes_skip);
   V_OCTET(stderr, "ram: used=%d / total=%d = %.2f%%.\n", bytes_used,
-         (ORamEnd - ORamBegin), 100.0 * bytes_used / (ORamEnd - ORamBegin));
-  V_OCTET(stderr, "ram: carved=%d / total=%d = %.2f%%.\n", bytes_used + bytes_skip,
-         (ORamEnd - ORamBegin),
-         100.0 * (bytes_used + bytes_skip) / (ORamEnd - ORamBegin));
+          (ORamEnd - ORamBegin), 100.0 * bytes_used / (ORamEnd - ORamBegin));
+  V_OCTET(stderr, "ram: carved=%d / total=%d = %.2f%%.\n",
+          bytes_used + bytes_skip, (ORamEnd - ORamBegin),
+          100.0 * (bytes_used + bytes_skip) / (ORamEnd - ORamBegin));
 
   V_OCTET(stderr, "}}}}} ODUMP %04x\n\n", ORamUsed);
 }
