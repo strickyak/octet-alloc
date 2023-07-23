@@ -1,3 +1,7 @@
-a.out
 RCS/
 *,v
+*.s
+*.o
+*.list
+*.un~
+*.swp
